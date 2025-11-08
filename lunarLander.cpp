@@ -10,6 +10,12 @@ ArduinoLEDMatrix matrix;
  * Mock lunar lander, use tasks and threads
  */
 
+ // Struct for lunar and earth re-entry return values
+struct LanderReturnValues {
+  float distanceFromSurface; // Height
+  float currentSpeed; 
+};
+
 // Matrix display constants
 const std::uint8_t rows = 8;
 const std::uint8_t cols = 12;
@@ -39,13 +45,6 @@ std::uint32_t missionTimeTicker(){
   return missionTime;
 }
 
-
-// Struct for lunar and earth re-entry return values
-struct LanderReturnValues {
-  float distanceFromSurface; // Height
-  float currentSpeed; 
-};
-
 // Once initiated via the serial port, it will run for 5 minutes and then break back out into a landed mode
 // we will need a landing module that will calculate where we will land on the moon as we are orbiting and going down onto it.
 LanderReturnValues lunarLander(LanderReturnValues previousValues){
@@ -59,10 +58,10 @@ LanderReturnValues lunarLander(LanderReturnValues previousValues){
   float currentDistanceFromSurface = previousValues.distanceFromSurface;
 
   // Do math here to drop the lander safely each time we call the function
-
+  // Using the engines burns fuel, we only have so much fuel wink emoji
   LanderReturnValues values;
-  values.distanceFromSurface = currentDistanceFromSurface;
-  values.currentSpeed = currentSpeedInOrbit;
+  values.distanceFromSurface = currentDistanceFromSurface -= 31.392f;
+  values.currentSpeed = currentSpeedInOrbit -= 2.573f;
 
   return values;
 }
@@ -135,6 +134,7 @@ void updateDisplayMatrix(char module, T logicValue){
           }
         break;
         case 'H':
+          // Heartbeat monitor in the bottom left of the matrix
           if(j < 2 && i >= 5){
             displayScreen[i][j] = static_cast<std::uint8_t>(logicValue);
           }
@@ -173,16 +173,20 @@ void loop() {
       flipBit = !flipBit;
       heartBeatSensor();
       updateDisplayMatrix('H', flipBit);
-    } else if (missionTimeTicker() % 5 == 0) { // Oxygen supply
+    } 
+    if (missionTimeTicker() % 5 == 0) { // Oxygen supply
       currentOxygenSupply = oxygenSupplyMonitor(currentOxygenSupply);
       Serial.print("currentOxygenSupply: ");
       Serial.println(currentOxygenSupply);
       updateDisplayMatrix('O', currentOxygenSupply);
-    } else if (missionTimeTicker() >= 1500) { // Start lunar lander protocol
+    } 
+     if (missionTimeTicker() >= 1500) { // Start lunar lander protocol
       // This should be recursive but break out so that we can continue to 
       // do the other tasks, similar to how oxygen supply works
       values = lunarLander(values); 
+      Serial.print("DISTANCE FROM LUNAR SURFACE: ");
       Serial.println(values.distanceFromSurface);
+      Serial.print("CURRENT SPEED: ");
       Serial.println(values.currentSpeed);
     }
 
